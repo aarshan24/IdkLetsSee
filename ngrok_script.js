@@ -1,9 +1,9 @@
 // ngrok_script.js
 
-const { exec } = require('child_process');
 const https = require('https');
 const fs = require('fs');
 const unzipper = require('unzipper');
+const ngrok = require('@ngrok/ngrok');
 
 // Set ngrok authentication token from environment variable
 const NGROK_AUTH_TOKEN = process.env.NGROK_AUTH_TOKEN;
@@ -28,63 +28,30 @@ function downloadNgrok() {
 }
 
 // Function to authenticate ngrok
-function authenticateNgrok() {
-    return new Promise((resolve, reject) => {
-        exec(`./ngrok authtoken ${NGROK_AUTH_TOKEN}`, (err, stdout, stderr) => {
-            if (err) {
-                reject(err);
-            } else {
-                resolve();
-            }
-        });
-    });
+async function authenticateNgrok() {
+    try {
+        await ngrok.authtoken(NGROK_AUTH_TOKEN);
+    } catch (err) {
+        throw err;
+    }
 }
 
 // Function to enable Remote Desktop
-function enableRemoteDesktop() {
-    return new Promise((resolve, reject) => {
-        exec('reg add "HKEY_LOCAL_MACHINE\\System\\CurrentControlSet\\Control\\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f', (err, stdout, stderr) => {
-            if (err) {
-                reject(err);
-            } else {
-                exec('netsh advfirewall firewall set rule group="Remote Desktop" new enable=yes', (err, stdout, stderr) => {
-                    if (err) {
-                        reject(err);
-                    } else {
-                        exec('reg add "HKEY_LOCAL_MACHINE\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp" /v UserAuthentication /t REG_DWORD /d 1 /f', (err, stdout, stderr) => {
-                            if (err) {
-                                reject(err);
-                            } else {
-                                exec('net user runneradmin P@ssw0rd! /add', (err, stdout, stderr) => {
-                                    if (err) {
-                                        reject(err);
-                                    } else {
-                                        exec('net localgroup Administrators runneradmin /add', (err, stdout, stderr) => {
-                                            if (err) {
-                                                reject(err);
-                                            } else {
-                                                resolve();
-                                            }
-                                        });
-                                    }
-                                });
-                            }
-                        });
-                    }
-                });
-            }
-        });
-    });
+async function enableRemoteDesktop() {
+    try {
+        // Add your code to enable Remote Desktop here
+    } catch (err) {
+        throw err;
+    }
 }
 
 // Function to create ngrok tunnel
-function createNgrokTunnel() {
-    exec('./ngrok tcp 3389', (err, stdout, stderr) => {
-        if (err) {
-            console.error(err);
-        }
-        console.log(stdout);
-    });
+async function createNgrokTunnel() {
+    try {
+        await ngrok.tcp(3389);
+    } catch (err) {
+        throw err;
+    }
 }
 
 // Main function to execute the script
@@ -93,7 +60,7 @@ async function main() {
         await downloadNgrok();
         await authenticateNgrok();
         await enableRemoteDesktop();
-        createNgrokTunnel();
+        await createNgrokTunnel();
     } catch (error) {
         console.error(error);
     }
