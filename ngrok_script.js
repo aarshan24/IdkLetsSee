@@ -1,102 +1,72 @@
-const https = require('https');
-const fs = require('fs');
-const unzipper = require('unzipper');
-const ngrok = require('@ngrok/ngrok');
 const { exec } = require('child_process');
-const os = require('os');
-
-console.log('Operating System:', os.platform());
-
+const ngrok = require('ngrok');
+const http = require('http');
 
 // Set ngrok authentication token from environment variable
 const NGROK_AUTH_TOKEN = process.env.NGROK_AUTH_TOKEN;
 
-// Function to download and extract ngrok
-async function downloadNgrok() {
-    console.log('Downloading ngrok...');
-    const file = fs.createWriteStream('ngrok.zip');
-    await new Promise((resolve, reject) => {
-        https.get('https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-stable-linux-amd64.zip', (response) => {
-            response.pipe(file);
-            file.on('finish', () => {
-                console.log('Download complete.');
-                file.close();
-                fs.createReadStream('ngrok.zip').pipe(unzipper.Extract({ path: '.' })).on('close', () => {
-                    console.log('Extraction complete.');
-                    fs.unlinkSync('ngrok.zip');
-                    resolve();
-                });
-            });
-        }).on('error', (err) => {
-            reject(err);
-        });
-    });
-}
-
 // Function to authenticate ngrok
 async function authenticateNgrok() {
-    console.log('Authenticating ngrok...');
     try {
-        await ngrok.authtoken(NGROK_AUTH_TOKEN);
-        console.log('Authentication successful.');
-    } catch (err) {
-        console.error('Authentication failed:', err);
-        throw err;
+        const authToken = await ngrok.authtoken(NGROK_AUTH_TOKEN);
+        console.log('ngrok authentication successful');
+        return authToken;
+    } catch (error) {
+        console.error('Error authenticating ngrok:', error);
+        throw error;
     }
-}
-
-// Function to enable Remote Desktop
-async function enableRemoteDesktop() {
-    console.log('Enabling Remote Desktop...');
-    try {
-        // Linux commands to enable Remote Desktop
-        await execCommand('sudo sed -i "s/Port 22/Port 3389/" /etc/ssh/sshd_config');
-        await execCommand('sudo service sshd restart');
-        console.log('Remote Desktop enabled.');
-    } catch (err) {
-        console.error('Failed to enable Remote Desktop:', err);
-        throw err;
-    }
-}
-
-// Function to execute shell command
-function execCommand(command) {
-    return new Promise((resolve, reject) => {
-        exec(command, (error, stdout, stderr) => {
-            if (error) {
-                reject(error);
-            } else {
-                resolve(stdout);
-            }
-        });
-    });
 }
 
 // Function to create ngrok tunnel
 async function createNgrokTunnel() {
-    console.log('Creating ngrok tunnel...');
     try {
-        await ngrok.connect({
+        const url = await ngrok.connect({
             proto: 'tcp',
-            addr: 3389
+            addr: 3389 // Remote Desktop port
         });
-        console.log('Ngrok tunnel created.');
-    } catch (err) {
-        console.error('Failed to create ngrok tunnel:', err);
-        throw err;
-    }
-}
-
-// Main function to execute the script
-async function main() {
-    try {
-        await downloadNgrok();
-        await authenticateNgrok();
-        await enableRemoteDesktop();
-        await createNgrokTunnel();
+        console.log('ngrok tunnel created:', url);
+        return url;
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error creating ngrok tunnel:', error);
+        throw error;
     }
 }
 
-main();
+// Start HTTP server
+const server = http.createServer(async (req, res) => {
+    try {
+        // Authenticate ngrok
+        await authenticateNgrok();
+
+        // Create ngrok tunnel
+        const tunnelUrl = await createNgrokTunnel();
+
+        // Get ngrok tunnel IP address and port
+        const urlParts = tunnelUrl.split(':');
+        const ipAddress = urlParts[1].slice(2); // Remove slashes
+        const port = urlParts[2];
+
+        // Generate username and password
+        const username = 'user';
+        const password = 'password';
+
+        // Prepare response with connection details
+        const connectionDetails = {
+            ip: ipAddress,
+            port: port,
+            username: username,
+            password: password
+        };
+
+        res.writeHead(200, {'Content-Type': 'application/json'});
+        res.end(JSON.stringify(connectionDetails));
+    } catch (error) {
+        res.writeHead(500, {'Content-Type': 'text/plain'});
+        res.end('Internal Server Error');
+    }
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
