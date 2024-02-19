@@ -8,10 +8,10 @@ const { exec } = require('child_process');
 const NGROK_AUTH_TOKEN = process.env.NGROK_AUTH_TOKEN;
 
 // Function to download and extract ngrok
-function downloadNgrok() {
+async function downloadNgrok() {
     console.log('Downloading ngrok...');
-    return new Promise((resolve, reject) => {
-        const file = fs.createWriteStream('ngrok.zip');
+    const file = fs.createWriteStream('ngrok.zip');
+    await new Promise((resolve, reject) => {
         https.get('https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-stable-linux-amd64.zip', (response) => {
             response.pipe(file);
             file.on('finish', () => {
@@ -45,12 +45,9 @@ async function authenticateNgrok() {
 async function enableRemoteDesktop() {
     console.log('Enabling Remote Desktop...');
     try {
-        // Run PowerShell commands to enable Remote Desktop
-        await execPowershellCommand('Set-ItemProperty -Path "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server" -Name "fDenyTSConnections" -Value 0');
-        await execPowershellCommand('Enable-NetFirewallRule -DisplayGroup "Remote Desktop"');
-        await execPowershellCommand('Set-ItemProperty -Path "HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp" -Name "UserAuthentication" -Value 1');
-        await execPowershellCommand('New-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "P@ssw0rd!" -Force)');
-        await execPowershellCommand('Add-LocalGroupMember -Group "Administrators" -Member "runneradmin"');
+        // Linux commands to enable Remote Desktop
+        await execCommand('sudo sed -i "s/Port 22/Port 3389/" /etc/ssh/sshd_config');
+        await execCommand('sudo service sshd restart');
         console.log('Remote Desktop enabled.');
     } catch (err) {
         console.error('Failed to enable Remote Desktop:', err);
@@ -58,14 +55,14 @@ async function enableRemoteDesktop() {
     }
 }
 
-// Function to execute PowerShell command
-function execPowershellCommand(command) {
+// Function to execute shell command
+function execCommand(command) {
     return new Promise((resolve, reject) => {
-        exec(`powershell.exe -Command "${command}"`, (err, stdout, stderr) => {
-            if (err) {
-                reject(err);
+        exec(command, (error, stdout, stderr) => {
+            if (error) {
+                reject(error);
             } else {
-                resolve(stdout.trim());
+                resolve(stdout);
             }
         });
     });
