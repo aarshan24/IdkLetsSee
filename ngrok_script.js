@@ -1,5 +1,5 @@
 const { exec } = require('child_process');
-const ngrok = require('ngrok');
+const ngrok = require('@ngrok/ngrok');
 const http = require('http');
 
 // Set ngrok authentication token from environment variable
