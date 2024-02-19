@@ -1,9 +1,8 @@
-// ngrok_script.js
-
 const https = require('https');
 const fs = require('fs');
 const unzipper = require('unzipper');
 const ngrok = require('@ngrok/ngrok');
+const { exec } = require('child_process');
 
 // Set ngrok authentication token from environment variable
 const NGROK_AUTH_TOKEN = process.env.NGROK_AUTH_TOKEN;
